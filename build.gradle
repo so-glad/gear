@@ -1,0 +1,104 @@
+buildscript {
+    repositories {
+        maven {
+            url "http://gear.glad.so:81/nexus/content/groups/public/"
+        }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${SPRING_BOOT_VERSION}")
+    }
+}
+
+apply plugin: 'eclipse-wtp'
+apply plugin: 'idea'
+apply plugin: 'spring-boot'
+apply plugin: 'war'
+apply plugin: 'maven-publish'
+
+group = 'so.glad'
+version = '1.0.0'
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+repositories {
+    maven {
+        url "http://gear.glad.so:81/nexus/content/groups/public/"
+    }
+}
+
+configurations {
+    providedRuntime
+}
+
+dependencies {
+    compile("com.google.guava:guava:18.0")
+    compile("org.slf4j:slf4j-api:1.7.12")
+    compile("javax.mail:javax.mail-api:1.5.2")
+    compile("com.sun.mail:javax.mail:1.5.2")
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework:spring-context-support:4.1.6.RELEASE")
+    providedCompile("org.springframework.boot:spring-boot-starter-tomcat")
+
+    testCompile("so.glad:soglad-test:1.0")
+    testCompile("org.apache.tomcat.embed:tomcat-embed-jasper:8.0.20")
+    testCompile("org.springframework.boot:spring-boot-starter-test")
+    testCompile("junit:junit:4.12")
+}
+
+eclipse {
+    classpath {
+        containers.remove('org.eclipse.jdt.launching.JRE_CONTAINER')
+        containers 'org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8'
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '1.12'
+}
+
+
+//**Maven Config **//
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            pom.withXml {
+                def parentNode = asNode().appendNode('parent')
+                parentNode.appendNode('groupId','org.springframework.boot')
+                parentNode.appendNode('artifactId','spring-boot-starter-parent')
+                parentNode.appendNode('version', "${SPRING_BOOT_VERSION}")
+            }
+            from components.web
+            artifacts {
+//                archives javadocJar
+                archives sourcesJar
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            artifactUrls ["https://gear.glad.so/nexus/content/groups/public/"]
+            if(project.version.endsWith('-SNAPSHOT')) {
+                url "https://gear.glad.so/nexus/content/repositories/snapshots/"
+            } else {
+                url "https://gear.glad.so/nexus/content/repositories/releases/"
+            }
+            credentials {
+                username "${PUBLISH_USERNAME}"
+                password "${PUBLISH_PASSWORD}"
+            }
+        }
+    }
+}
+
+publish.dependsOn bootRepackage
